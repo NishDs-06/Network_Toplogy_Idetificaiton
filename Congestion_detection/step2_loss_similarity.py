@@ -1,38 +1,36 @@
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
-# Load merged per-cell data
-cell1 = pd.read_csv("merged_cell1.csv")
-cell2 = pd.read_csv("merged_cell2.csv")
-cell3 = pd.read_csv("merged_cell3.csv")
+BASE_DIR = Path(__file__).resolve().parents[1]
+PRE_OUT = BASE_DIR / "Preprocessing" / "outputs"
+OUT_DIR = BASE_DIR / "Clustering" / "outputs"
+OUT_DIR.mkdir(exist_ok=True)
 
-# Extract loss_event vectors (aligned by slot_id)
-loss_vectors = {
-    1: cell1["loss_event"].values,
-    2: cell2["loss_event"].values,
-    3: cell3["loss_event"].values
-}
+tp = pd.read_csv(PRE_OUT / "multicell_throughputdata.csv")
 
-# Jaccard similarity for binary vectors
-def jaccard_similarity(a, b):
-    intersection = np.logical_and(a, b).sum()
-    union = np.logical_or(a, b).sum()
-    return intersection / union if union != 0 else 0.0
+# Compute rolling z-score per cell
+features = []
 
-# Compute similarity matrix
-cell_ids = list(loss_vectors.keys())
-similarity_matrix = pd.DataFrame(
-    index=cell_ids,
-    columns=cell_ids,
-    dtype=float
-)
+for cell_id, df in tp.groupby("cell_id"):
+    df = df.sort_values("slot_id").copy()
 
-for i in cell_ids:
-    for j in cell_ids:
-        similarity_matrix.loc[i, j] = jaccard_similarity(
-            loss_vectors[i],
-            loss_vectors[j]
-        )
+    med = df["throughput_slot"].rolling(200, min_periods=50).median()
+    mad = (df["throughput_slot"] - med).abs().rolling(200, min_periods=50).median()
 
-print("Loss-event similarity matrix (Jaccard):")
-print(similarity_matrix)
+    z = (df["throughput_slot"] - med) / (mad + 1e-6)
+    z = z.fillna(0)
+
+    features.append(
+        z.rename(cell_id).reset_index(drop=True)
+    )
+
+Z = pd.concat(features, axis=1)
+
+# Pearson correlation
+similarity = Z.corr().fillna(0)
+
+similarity.to_csv(OUT_DIR / "similarity_matrix.csv")
+
+print("[DONE] Robust similarity matrix computed")
+print(similarity)
