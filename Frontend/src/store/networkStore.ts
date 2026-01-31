@@ -34,6 +34,24 @@ export interface Insight {
 
 export type ViewMode = 'heatmap' | 'topology' | 'propagation';
 export type InteractionMode = 'explore' | 'focus' | 'compare' | 'timeline';
+export type HighlightColor = 'red' | 'yellow' | 'green';
+
+export interface HighlightedCell {
+    row: number;
+    col: number;
+    color: HighlightColor;
+}
+
+export interface DetailPopup {
+    cellId: string;
+    row: number;
+    col: number;
+    x: number;
+    y: number;
+    title: string;
+    content: string;
+    type: 'cell' | 'anomaly' | 'correlation';
+}
 
 interface NetworkState {
     // Data
@@ -54,6 +72,11 @@ interface NetworkState {
     isAnalyzing: boolean;
     analysisProgress: number;
 
+    // Highlight State
+    highlightedCells: HighlightedCell[];
+    highlightMode: 'anomaly' | 'correlation' | null;
+    detailPopup: DetailPopup | null;
+
     // Temporal
     currentTime: number;
     timeRange: [number, number];
@@ -70,6 +93,14 @@ interface NetworkState {
     setCurrentTime: (time: number) => void;
     loadData: (matrix: number[][], cellIds: string[], topology: Record<string, string>) => void;
     addInsight: (insight: Omit<Insight, 'id' | 'timestamp'>) => void;
+
+    // Highlight Actions
+    highlightAnomalyCells: (anomalyCellId: string) => void;
+    highlightCorrelationCells: (cellId1: string, cellId2: string) => void;
+    setHighlightedCells: (cells: HighlightedCell[]) => void;
+    clearHighlights: () => void;
+    setDetailPopup: (popup: DetailPopup | null) => void;
+    showCellDetail: (row: number, col: number, x: number, y: number) => void;
 }
 
 // Generate demo data
@@ -156,7 +187,7 @@ const generateDemoData = () => {
 
 const demoData = generateDemoData();
 
-export const useNetworkStore = create<NetworkState>((set) => ({
+export const useNetworkStore = create<NetworkState>((set, get) => ({
     // Initial demo data
     similarityMatrix: demoData.matrix,
     cellIds: demoData.cellIds,
@@ -174,6 +205,11 @@ export const useNetworkStore = create<NetworkState>((set) => ({
     selectedNode: null,
     isAnalyzing: false,
     analysisProgress: 0,
+
+    // Highlight State
+    highlightedCells: [],
+    highlightMode: null,
+    detailPopup: null,
 
     // Temporal
     currentTime: 0,
@@ -251,4 +287,115 @@ export const useNetworkStore = create<NetworkState>((set) => ({
             ...state.insights,
         ],
     })),
+
+    // Highlight Actions
+    setHighlightedCells: (cells) => set({ highlightedCells: cells }),
+
+    clearHighlights: () => set({
+        highlightedCells: [],
+        highlightMode: null,
+        detailPopup: null
+    }),
+
+    setDetailPopup: (popup) => set({ detailPopup: popup }),
+
+    highlightAnomalyCells: (anomalyCellId: string) => {
+        const state = get();
+        const cellIndex = state.cellIds.findIndex(id => id === anomalyCellId);
+        if (cellIndex === -1) return;
+
+        // Find all cells with high correlation to this anomaly (>0.5)
+        const highlights: HighlightedCell[] = [];
+
+        // Highlight the anomaly cell itself (diagonal)
+        highlights.push({ row: cellIndex, col: cellIndex, color: 'red' });
+
+        // Highlight correlated cells
+        for (let i = 0; i < state.cellIds.length; i++) {
+            if (i !== cellIndex) {
+                const similarity = state.similarityMatrix[cellIndex]?.[i] || 0;
+                if (similarity > 0.5) {
+                    highlights.push({ row: cellIndex, col: i, color: 'red' });
+                    highlights.push({ row: i, col: cellIndex, color: 'red' });
+                }
+            }
+        }
+
+        set({
+            highlightedCells: highlights,
+            highlightMode: 'anomaly',
+            viewMode: 'heatmap' // Switch to heatmap to show highlights
+        });
+    },
+
+    highlightCorrelationCells: (cellId1: string, cellId2: string) => {
+        const state = get();
+        const idx1 = state.cellIds.findIndex(id => id === cellId1);
+        const idx2 = state.cellIds.findIndex(id => id === cellId2);
+
+        if (idx1 === -1 || idx2 === -1) return;
+
+        const highlights: HighlightedCell[] = [
+            { row: idx1, col: idx2, color: 'yellow' },
+            { row: idx2, col: idx1, color: 'yellow' },
+            { row: idx1, col: idx1, color: 'yellow' },
+            { row: idx2, col: idx2, color: 'yellow' },
+        ];
+
+        // Also highlight all cells in the same cluster as both cells
+        for (let i = 0; i < state.cellIds.length; i++) {
+            const sim1 = state.similarityMatrix[idx1]?.[i] || 0;
+            const sim2 = state.similarityMatrix[idx2]?.[i] || 0;
+            if (sim1 > 0.6 || sim2 > 0.6) {
+                highlights.push({ row: idx1, col: i, color: 'yellow' });
+                highlights.push({ row: i, col: idx1, color: 'yellow' });
+            }
+        }
+
+        set({
+            highlightedCells: highlights,
+            highlightMode: 'correlation',
+            viewMode: 'heatmap'
+        });
+    },
+
+    showCellDetail: (row: number, col: number, x: number, y: number) => {
+        const state = get();
+        const cell1 = state.cellIds[row];
+        const cell2 = state.cellIds[col];
+        const value = state.similarityMatrix[row]?.[col] || 0;
+
+        // Check if either cell is an anomaly
+        const cell1Data = state.cells.find(c => c.id === cell1);
+        const cell2Data = state.cells.find(c => c.id === cell2);
+        const hasAnomaly = cell1Data?.isAnomaly || cell2Data?.isAnomaly;
+
+        // Generate LLM-style analysis content
+        let content = '';
+        if (value > 0.8) {
+            content = `Strong correlation (${(value * 100).toFixed(0)}%) indicates these cells likely share the same fronthaul segment. Traffic patterns are highly synchronized, suggesting shared infrastructure or common congestion points.`;
+        } else if (value > 0.5) {
+            content = `Moderate correlation (${(value * 100).toFixed(0)}%) suggests partial infrastructure overlap. These cells may share upstream components but have some independent paths.`;
+        } else {
+            content = `Low correlation (${(value * 100).toFixed(0)}%) indicates these cells operate on mostly independent fronthaul segments. Congestion events are unlikely to propagate between them.`;
+        }
+
+        if (hasAnomaly) {
+            content += `\n\n⚠️ ANOMALY DETECTED: ${cell1Data?.isAnomaly ? cell1 : cell2} shows anomalous behavior with ${((cell1Data?.anomalyScore || cell2Data?.anomalyScore || 0) * 100).toFixed(0)}% confidence.`;
+        }
+
+        set({
+            detailPopup: {
+                cellId: `${cell1}-${cell2}`,
+                row,
+                col,
+                x,
+                y,
+                title: `${cell1.toUpperCase()} ↔ ${cell2.toUpperCase()}`,
+                content,
+                type: hasAnomaly ? 'anomaly' : 'cell',
+            }
+        });
+    },
 }));
+

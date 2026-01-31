@@ -18,8 +18,11 @@ export function InteractiveHeatmap() {
         cellIds,
         hoveredCell,
         selectedCells,
+        highlightedCells,
         setHoveredCell,
-        selectCell
+        selectCell,
+        showCellDetail,
+        clearHighlights,
     } = useNetworkStore();
 
     const n = cellIds.length;
@@ -32,6 +35,12 @@ export function InteractiveHeatmap() {
     const colorScale = d3.scaleSequential()
         .domain([0, 1])
         .interpolator(d3.interpolateRgb('#1a1a2e', '#00d9a3'));
+
+    // Check if cell is highlighted
+    const getHighlightColor = useCallback((row: number, col: number) => {
+        const highlighted = highlightedCells.find(h => h.row === row && h.col === col);
+        return highlighted?.color || null;
+    }, [highlightedCells]);
 
     const renderHeatmap = useCallback(() => {
         const canvas = canvasRef.current;
@@ -53,8 +62,15 @@ export function InteractiveHeatmap() {
             const x = labelOffset + j * (cellSize + gap) + cellSize / 2;
             const isHovered = hoveredCell?.col === j;
             const isSelected = selectedCells.some(c => c.col === j);
+            const highlightColor = getHighlightColor(0, j);
 
-            ctx.fillStyle = isSelected ? '#00d9a3' : isHovered ? '#ffd60a' : '#666666';
+            let fillColor = '#666666';
+            if (highlightColor === 'red') fillColor = '#ff3b30';
+            else if (highlightColor === 'yellow') fillColor = '#ffd60a';
+            else if (isSelected) fillColor = '#00d9a3';
+            else if (isHovered) fillColor = '#ffd60a';
+
+            ctx.fillStyle = fillColor;
 
             ctx.save();
             ctx.translate(x, labelOffset - 8);
@@ -71,8 +87,15 @@ export function InteractiveHeatmap() {
             const y = labelOffset + i * (cellSize + gap) + cellSize / 2;
             const isHovered = hoveredCell?.row === i;
             const isSelected = selectedCells.some(c => c.row === i);
+            const highlightColor = getHighlightColor(i, 0);
 
-            ctx.fillStyle = isSelected ? '#00d9a3' : isHovered ? '#ffd60a' : '#666666';
+            let fillColor = '#666666';
+            if (highlightColor === 'red') fillColor = '#ff3b30';
+            else if (highlightColor === 'yellow') fillColor = '#ffd60a';
+            else if (isSelected) fillColor = '#00d9a3';
+            else if (isHovered) fillColor = '#ffd60a';
+
+            ctx.fillStyle = fillColor;
             ctx.fillText(cellIds[i].slice(-2), labelOffset - 8, y);
         }
 
@@ -83,14 +106,24 @@ export function InteractiveHeatmap() {
                 const y = labelOffset + i * (cellSize + gap);
                 const value = similarityMatrix[i][j];
 
+                // Check highlight
+                const highlightColor = getHighlightColor(i, j);
+
                 // Determine if cell should be dimmed
                 const isHovered = hoveredCell?.row === i && hoveredCell?.col === j;
                 const isInHoveredRowCol = hoveredCell && (hoveredCell.row === i || hoveredCell.col === j);
                 const isSelected = selectedCells.some(c => c.row === i && c.col === j);
-                const shouldDim = hoveredCell && !isInHoveredRowCol && !isHovered;
+                const shouldDim = hoveredCell && !isInHoveredRowCol && !isHovered && !highlightColor;
 
-                // Base cell color
-                ctx.fillStyle = colorScale(value);
+                // Base cell color - override if highlighted
+                if (highlightColor === 'red') {
+                    ctx.fillStyle = `rgba(255, 59, 48, ${0.4 + value * 0.5})`;
+                } else if (highlightColor === 'yellow') {
+                    ctx.fillStyle = `rgba(255, 214, 10, ${0.3 + value * 0.6})`;
+                } else {
+                    ctx.fillStyle = colorScale(value);
+                }
+
                 if (shouldDim) {
                     ctx.globalAlpha = 0.3;
                 }
@@ -102,8 +135,15 @@ export function InteractiveHeatmap() {
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x, y, cellSize, cellSize);
 
-                // Hover/Selection highlight
-                if (isHovered || isSelected) {
+                // Highlight border
+                if (highlightColor) {
+                    ctx.strokeStyle = highlightColor === 'red' ? '#ff3b30' : '#ffd60a';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x - 1, y - 1, cellSize + 2, cellSize + 2);
+                }
+
+                // Hover/Selection highlight (if not already highlighted)
+                if (!highlightColor && (isHovered || isSelected)) {
                     ctx.strokeStyle = isSelected ? '#00d9a3' : '#ffd60a';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(x - 1, y - 1, cellSize + 2, cellSize + 2);
@@ -177,7 +217,7 @@ export function InteractiveHeatmap() {
         ctx.fillText('0.5', legendX + legendWidth + 8, legendY + legendHeight / 2);
         ctx.fillText('0.0', legendX + legendWidth + 8, legendY + legendHeight);
 
-    }, [similarityMatrix, cellIds, n, cellSize, colorScale, hoveredCell, selectedCells, totalSize, labelOffset]);
+    }, [similarityMatrix, cellIds, n, cellSize, colorScale, hoveredCell, selectedCells, highlightedCells, totalSize, labelOffset, gap, getHighlightColor]);
 
     // Handle mouse events
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -214,11 +254,20 @@ export function InteractiveHeatmap() {
         setTooltipInfo(null);
     }, [setHoveredCell]);
 
-    const handleClick = useCallback(() => {
+    const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         if (hoveredCell) {
+            // Show detail popup instead of just selecting
+            showCellDetail(hoveredCell.row, hoveredCell.col, e.clientX, e.clientY);
             selectCell(hoveredCell);
         }
-    }, [hoveredCell, selectCell]);
+    }, [hoveredCell, selectCell, showCellDetail]);
+
+    // Click outside to clear highlights
+    const handleContainerClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === containerRef.current) {
+            clearHighlights();
+        }
+    }, [clearHighlights]);
 
     // Render on data or state change
     useEffect(() => {
@@ -228,8 +277,9 @@ export function InteractiveHeatmap() {
     return (
         <div
             ref={containerRef}
-            className="viz-container heatmap"
+            className="viz-container heatmap relative"
             style={{ padding: '24px' }}
+            onClick={handleContainerClick}
         >
             <canvas
                 ref={canvasRef}
@@ -241,7 +291,8 @@ export function InteractiveHeatmap() {
                 style={{
                     maxWidth: '100%',
                     maxHeight: '100%',
-                    objectFit: 'contain'
+                    objectFit: 'contain',
+                    cursor: 'crosshair'
                 }}
             />
 
@@ -265,6 +316,17 @@ export function InteractiveHeatmap() {
                     </span>
                     <span className="tooltip-value">
                         {tooltipInfo.value.toFixed(3)}
+                    </span>
+                </div>
+            )}
+
+            {/* Highlight mode indicator */}
+            {highlightedCells.length > 0 && (
+                <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-emphasis)]">
+                    <span className={`w-2 h-2 rounded-full ${highlightedCells[0].color === 'red' ? 'bg-[var(--state-critical)]' : 'bg-[var(--accent-hover)]'
+                        } animate-pulse`}></span>
+                    <span className="font-mono-data text-[10px] text-[var(--text-secondary)]">
+                        {highlightedCells.length} cells highlighted
                     </span>
                 </div>
             )}
