@@ -1,88 +1,119 @@
-import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import networkx as nx
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import squareform
 
+# ==================================================
+# Load similarity matrix
+# ==================================================
+SIMILARITY_PATH = "outputs/similarity_matrix.csv"
+similarity = pd.read_csv(SIMILARITY_PATH, index_col=0)
 
-def infer_topology(similarity_matrix: pd.DataFrame):
-    """
-    Contract #3: Relative Topology Identification (Round 1)
+# Normalize labels
+similarity.index = similarity.index.astype(str).str.strip()
+similarity.columns = similarity.columns.astype(str).str.strip()
+similarity = similarity.loc[similarity.index, similarity.index]
 
-    Input:
-        similarity_matrix (pd.DataFrame)
-    Output:
-        topology_result (dict)
-        link_groups (dict)
-    """
+assert similarity.shape[0] == similarity.shape[1], "Similarity matrix must be square"
 
-    # Sanity checks
-    assert similarity_matrix.shape[0] == similarity_matrix.shape[1]
-    assert (similarity_matrix.index == similarity_matrix.columns).all()
+# ==================================================
+# Hierarchical clustering
+# ==================================================
+distance_matrix = 1 - similarity
+condensed_distance = squareform(distance_matrix.values, checks=False)
+linkage_matrix = linkage(condensed_distance, method="average")
 
-    # Convert similarity → distance
-    distance_matrix = 1 - similarity_matrix
-    condensed_distance = squareform(distance_matrix.values, checks=False)
+DISTANCE_THRESHOLD = 0.6
+cluster_labels = fcluster(linkage_matrix, t=DISTANCE_THRESHOLD, criterion="distance")
 
-    # Hierarchical clustering
-    linkage_matrix = linkage(condensed_distance, method="average")
+# ==================================================
+# Build outputs
+# ==================================================
+topology_table = pd.DataFrame({
+    "cell_id": similarity.index,
+    "relative_group": cluster_labels
+}).sort_values("relative_group")
 
-    # For Round-1: do NOT overclaim exact number of links
-    # We cut at 2 clusters to infer relative grouping
-    cluster_labels = fcluster(linkage_matrix, t=2, criterion="maxclust")
+# Group cells
+grouped_cells = {}
+for cell, grp in zip(similarity.index, cluster_labels):
+    grouped_cells.setdefault(grp, []).append(cell)
 
-    topology_result = {}
-    link_groups = {}
+# ==================================================
+# 1️⃣ COLOR ASSIGNMENT
+# ==================================================
+COLOR_MAP = [
+    "red", "blue", "green", "orange", "purple",
+    "brown", "pink", "gray", "olive", "cyan"
+]
 
-    for cell_id, cluster_id in zip(similarity_matrix.index, cluster_labels):
-        group_name = f"Group_{cluster_id}"
-        topology_result[cell_id] = group_name
-        link_groups.setdefault(group_name, []).append(cell_id)
+group_colors = {
+    grp: COLOR_MAP[i % len(COLOR_MAP)]
+    for i, grp in enumerate(sorted(grouped_cells))
+}
 
-    return topology_result, link_groups
+topology_table["group_color"] = topology_table["relative_group"].map(group_colors)
 
+# ==================================================
+# OUTPUT — CLEAN TABLE
+# ==================================================
+print("\n==========================================")
+print(" Relative Fronthaul Topology")
+print("==========================================\n")
+print(topology_table.to_string(index=False))
 
-if __name__ == "__main__":
+# ==================================================
+# OUTPUT — FLOWCHART STYLE
+# ==================================================
+print("\n==========================================")
+print(" Relative Fronthaul Grouping")
+print("==========================================\n")
 
-    # Similarity matrix provided by Person B
-    similarity_matrix = pd.DataFrame(
-        [
-            [1.0, 0.409153, 0.446456],
-            [0.409153, 1.0, 0.436335],
-            [0.446456, 0.436335, 1.0]
-        ],
-        index=["cell_01", "cell_02", "cell_03"],
-        columns=["cell_01", "cell_02", "cell_03"]
-    )
+for grp in sorted(grouped_cells):
+    print(f"Group {grp} ({group_colors[grp]})")
+    print("  ↓")
+    for cell in grouped_cells[grp]:
+        print(f"  {cell}")
+    print()
 
-    topology_result, link_groups = infer_topology(similarity_matrix)
+# ==================================================
+# SAVE TABLE FOR PERSON D
+# ==================================================
+topology_table.to_csv("outputs/relative_fronthaul_groups.csv", index=False)
 
-    # ----- FINAL ROUND-1 OUTPUT -----
+# ==================================================
+# 2️⃣ SIMPLE NETWORK GRAPH
+# ==================================================
+G = nx.Graph()
 
-    print("\nRelative Fronthaul Topology (Illustrative)\n")
+# Add nodes
+for cell in similarity.index:
+    grp = topology_table.loc[topology_table.cell_id == cell, "relative_group"].values[0]
+    G.add_node(cell, group=grp)
 
-    shared_groups = []
-    independent_cells = []
+# Connect nodes within same group
+for grp, cells in grouped_cells.items():
+    for i in range(len(cells)):
+        for j in range(i + 1, len(cells)):
+            G.add_edge(cells[i], cells[j])
 
-    for group, cells in link_groups.items():
-        if len(cells) > 1:
-            shared_groups.append(cells)
-        else:
-            independent_cells.extend(cells)
+# Draw graph
+plt.figure(figsize=(10, 8))
+pos = nx.spring_layout(G, seed=42)
 
-    for group in shared_groups:
-        print("        ┌──────────┐")
-        print(f"        │ {group[0]} │")
-        print("        └────┬─────┘")
-        print("             │")
-        print("     Shared Fronthaul Link")
-        print("             │")
-        print("        ┌────┴─────┐")
-        print(f"        │ {group[1]} │")
-        print("        └──────────┘\n")
+node_colors = [
+    group_colors[G.nodes[n]["group"]] for n in G.nodes
+]
 
-    for cell in independent_cells:
-        print("        ┌──────────┐")
-        print(f"        │ {cell} │")
-        print("        └──────────┘")
-        print("   (Less correlated / independent)\n")
+nx.draw(
+    G,
+    pos,
+    with_labels=True,
+    node_color=node_colors,
+    node_size=800,
+    font_size=9
+)
 
+plt.title("Relative Fronthaul Topology (Graph View)")
+plt.show()
