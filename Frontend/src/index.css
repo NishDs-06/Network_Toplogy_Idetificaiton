@@ -1,0 +1,685 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@import "tailwindcss";
+
+/* ============================================
+   DESIGN TOKENS - Network Cartography Theme
+   ============================================ */
+
+:root {
+  /* Foundation */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #161616;
+  --bg-tertiary: #1e1e1e;
+  --text-primary: #e8e8e8;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+
+  /* Data States */
+  --state-healthy: #00d9a3;
+  --state-degraded: #ff9500;
+  --state-critical: #ff3b30;
+
+  /* Topology Groups */
+  --group-primary: #d4a574;
+  --group-secondary: #7aa874;
+  --group-tertiary: #7488a8;
+
+  /* Interaction */
+  --accent-hover: #ffd60a;
+  --accent-active: #00d9a3;
+
+  /* Structural */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-emphasis: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.24);
+
+  /* Heatmap Scale */
+  --heatmap-low: #1a1a2e;
+  --heatmap-high: #00d9a3;
+}
+
+/* ============================================
+   RESET & BASE STYLES
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   TYPOGRAPHY CLASSES
+   ============================================ */
+
+.font-mono-display {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-weight: 600;
+}
+
+.font-mono-data {
+  font-family: 'IBM Plex Mono', 'Consolas', monospace;
+  font-weight: 400;
+}
+
+.font-mono-ui {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-weight: 500;
+}
+
+.text-display-xl {
+  font-size: 72px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.text-display-lg {
+  font-size: 48px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.text-section {
+  font-size: 18px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.text-body {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.text-meta {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.text-data {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* ============================================
+   LAYOUT COMPONENTS
+   ============================================ */
+
+.command-center {
+  display: grid;
+  grid-template-rows: 56px 1fr 40px;
+  grid-template-columns: 280px 1fr 320px;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-primary);
+}
+
+.header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.left-rail {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-subtle);
+  overflow-y: auto;
+}
+
+.main-canvas {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  overflow: hidden;
+  position: relative;
+}
+
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-subtle);
+  overflow-y: auto;
+}
+
+.footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ============================================
+   UI COMPONENTS
+   ============================================ */
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.healthy {
+  background-color: var(--state-healthy);
+}
+
+.status-dot.degraded {
+  background-color: var(--state-degraded);
+}
+
+.status-dot.critical {
+  background-color: var(--state-critical);
+}
+
+.status-dot.inactive {
+  background-color: var(--text-muted);
+}
+
+.status-indicator {
+  display: flex;
+  gap: 4px;
+}
+
+.btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid var(--border-emphasis);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--bg-primary);
+}
+
+.btn-primary {
+  background-color: var(--state-healthy);
+  border-color: var(--state-healthy);
+  color: var(--bg-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.card {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.kbd {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 2px 6px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-emphasis);
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   VISUALIZATION SPECIFIC
+   ============================================ */
+
+.viz-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: default;
+}
+
+.viz-container.heatmap {
+  cursor: crosshair;
+}
+
+.viz-container.topology {
+  cursor: grab;
+}
+
+.viz-container.topology:active {
+  cursor: grabbing;
+}
+
+.tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.95);
+  border: 1px solid var(--border-emphasis);
+  padding: 8px 12px;
+  pointer-events: none;
+  z-index: 100;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+
+.tooltip-value {
+  color: var(--state-healthy);
+  margin-left: 8px;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes anomaly-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(255, 59, 48, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 16px rgba(255, 59, 48, 0.8);
+  }
+}
+
+.anomaly-pulse {
+  animation: anomaly-pulse 3s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes stream-char {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-emphasis);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ============================================
+   MICRO-ANIMATIONS
+   ============================================ */
+
+/* Data update flash */
+@keyframes data-update {
+  0% {
+    background-color: rgba(0, 217, 163, 0.15);
+    transform: scale(1.02);
+  }
+
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+.data-updated {
+  animation: data-update 0.4s ease-out;
+}
+
+/* Smooth hover transitions */
+.smooth-hover {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card hover lift */
+.card {
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-emphasis);
+}
+
+/* Button press effect */
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* Focus ring */
+.btn:focus-visible,
+.view-tab:focus-visible {
+  outline: 2px solid var(--accent-active);
+  outline-offset: 2px;
+}
+
+/* Loading shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.loading-shimmer {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Fade in scale */
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fade-in-scale {
+  animation: fade-in-scale 0.2s ease-out;
+}
+
+/* Slide in from right */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.2s ease-out;
+}
+
+/* Pulse glow for active elements */
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 217, 163, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgba(0, 217, 163, 0.1);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Number counter animation */
+@keyframes count-up {
+  from {
+    opacity: 0.5;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.metric-value {
+  animation: count-up 0.3s ease-out;
+}
+
+/* Insight card stagger */
+.insight-card {
+  animation: slide-in-right 0.25s ease-out backwards;
+}
+
+.insight-card:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.insight-card:nth-child(2) {
+  animation-delay: 75ms;
+}
+
+.insight-card:nth-child(3) {
+  animation-delay: 150ms;
+}
+
+/* ============================================
+   VIEW TABS
+   ============================================ */
+
+.view-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.view-tab {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-tab:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.view-tab.active {
+  color: var(--accent-active);
+  border-bottom-color: var(--accent-active);
+}
+
+/* ============================================
+   FILE UPLOAD
+   ============================================ */
+
+.upload-zone {
+  border: 1px dashed var(--border-emphasis);
+  padding: 24px;
+  text-align: center;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.upload-zone:hover {
+  border-color: var(--accent-hover);
+  background-color: rgba(255, 214, 10, 0.05);
+}
+
+.upload-zone.dragover {
+  border-color: var(--state-healthy);
+  background-color: rgba(0, 217, 163, 0.1);
+}
+
+/* ============================================
+   METRICS
+   ============================================ */
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.metric:last-child {
+  border-bottom: none;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.metric-value.healthy {
+  color: var(--state-healthy);
+}
+
+.metric-value.degraded {
+  color: var(--state-degraded);
+}
+
+.metric-value.critical {
+  color: var(--state-critical);
+}
+
+/* ============================================
+   INSIGHTS PANEL
+   ============================================ */
+
+.insight-card {
+  background-color: var(--bg-tertiary);
+  border-left: 3px solid var(--state-healthy);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.insight-card.warning {
+  border-left-color: var(--state-degraded);
+}
+
+.insight-card.critical {
+  border-left-color: var(--state-critical);
+}
+
+.anomaly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.anomaly-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+}
+
+.anomaly-item:hover {
+  border-color: var(--accent-hover);
+}
+
+.anomaly-id {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.anomaly-score {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--state-critical);
+  margin-left: auto;
+}
