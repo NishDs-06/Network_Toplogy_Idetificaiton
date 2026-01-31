@@ -1,22 +1,31 @@
 import pandas as pd
 from pathlib import Path
 
-# Paths
 BASE_DIR = Path(__file__).resolve().parents[1]
 ML_OUT = BASE_DIR / "ML" / "outputs"
-PRE_OUT = BASE_DIR / "Preprocessing" / "outputs"
-CLUSTER_DIR = BASE_DIR / "Clustering"
 
-# Load inputs
+# ✅ CORRECT clustering output path
+CLUSTER_FILE = (
+    BASE_DIR
+    / "Clustering"
+    / "outputs"
+    / "relative_fronthaul_groups.csv"
+)
+
+
+# ---------------- LOAD DATA ----------------
 anomalies = pd.read_csv(ML_OUT / "cell_anomalies.csv")
-groups = pd.read_csv(CLUSTER_DIR / "groups.csv")  # cell_id, group_id
+groups = pd.read_csv(CLUSTER_FILE)
 
-# Merge group info
-df = anomalies.merge(groups, on="cell_id", how="inner")
+# Normalize column name
+groups = groups.rename(columns={"relative_group": "group_id"})
+
+# Merge anomaly + topology
+df = anomalies.merge(groups[["cell_id", "group_id"]], on="cell_id", how="inner")
 
 results = []
 
-# Analyze propagation per group
+# ---------------- PROPAGATION LOGIC ----------------
 for group_id, gdf in df.groupby("group_id"):
     pivot = gdf.pivot_table(
         index="slot_id",
@@ -25,28 +34,33 @@ for group_id, gdf in df.groupby("group_id"):
         fill_value=0
     )
 
-    # Count simultaneous anomalies
-    simultaneous = (pivot.sum(axis=1) >= 2).sum()
+    # Simultaneous anomalies = congestion propagation signal
+    simultaneous_slots = pivot[pivot.sum(axis=1) >= 2]
+    simultaneous_count = len(simultaneous_slots)
 
-    # Directionality (who fires first)
-    lead_counts = {cell: 0 for cell in pivot.columns}
+    # Confidence: normalized propagation strength
+    confidence = simultaneous_count / max(len(pivot), 1)
 
-    for _, row in pivot.iterrows():
-        active = row[row == 1].index.tolist()
-        if len(active) >= 2:
-            lead_counts[active[0]] += 1
+    # Leader inference: earliest anomaly per slot
+    leader_counts = {cell: 0 for cell in pivot.columns}
 
-    leader = max(lead_counts, key=lead_counts.get)
+    for _, row in simultaneous_slots.iterrows():
+        active_cells = row[row == 1].index.tolist()
+        if active_cells:
+            leader_counts[active_cells[0]] += 1
+
+    leader_cell = max(leader_counts, key=leader_counts.get)
 
     results.append({
-        "group_id": group_id,
-        "cells_in_group": list(pivot.columns),
-        "simultaneous_events": int(simultaneous),
-        "likely_leader_cell": int(leader)
+        "group_id": int(group_id),
+        "cells_in_group": list(map(int, pivot.columns)),
+        "simultaneous_events": int(simultaneous_count),
+        "leader_cell": int(leader_cell),
+        "group_confidence": round(confidence, 4)
     })
 
+# ---------------- SAVE ----------------
 propagation_df = pd.DataFrame(results)
-
 propagation_df.to_csv(
     ML_OUT / "congestion_propagation.csv",
     index=False

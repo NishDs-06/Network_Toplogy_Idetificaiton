@@ -2,33 +2,29 @@ import pandas as pd
 from pathlib import Path
 
 # -------------------------------------------------
-# This script exports cell → group mapping for ML
+# Export cell → group mapping for ML & API
+# Source: relative_fronthaul_groups.csv (Person C)
 # -------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-CLUSTER_DIR = BASE_DIR / "Clustering"
+SRC = BASE_DIR / "Clustering" / "outputs" / "relative_fronthaul_groups.csv"
+DST = BASE_DIR / "ML" / "ml_inputs" / "groups.csv"
 
-# ⚠️ Adjust this filename ONLY if your clustering output
-# is saved under a different name
-CLUSTER_RESULT_FILE = CLUSTER_DIR / "clustering_result.csv"
+if not SRC.exists():
+    raise FileNotFoundError(f"Missing clustering output: {SRC}")
 
-# Expected format of clustering_result.csv:
-# cell_id, cluster_id
+df = pd.read_csv(SRC)
 
-if not CLUSTER_RESULT_FILE.exists():
-    raise FileNotFoundError(
-        f"Clustering result not found: {CLUSTER_RESULT_FILE}"
-    )
+# Normalize schema to API / ML contract
+groups_df = (
+    df.rename(columns={"relative_group": "group_id"})
+      [["cell_id", "group_id"]]
+      .sort_values("cell_id")
+)
 
-df = pd.read_csv(CLUSTER_RESULT_FILE)
+groups_df.to_csv(DST, index=False)
 
-# Normalize column names
-df = df.rename(columns={"cluster_id": "group_id"})
-
-groups_df = df[["cell_id", "group_id"]].sort_values("cell_id")
-
-groups_df.to_csv(CLUSTER_DIR / "groups.csv", index=False)
-
-print("[DONE] groups.csv created")
-print("Groups:", groups_df["group_id"].nunique())
+print("[OK] groups.csv exported for ML / API")
 print("Cells:", groups_df["cell_id"].nunique())
+print("Groups:", groups_df["group_id"].nunique())
+print(groups_df.head())
