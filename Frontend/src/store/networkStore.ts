@@ -7,6 +7,7 @@ export interface CellData {
     group: string;
     isAnomaly: boolean;
     anomalyScore?: number;
+    confidence?: number;
 }
 
 export interface TopologyGroup {

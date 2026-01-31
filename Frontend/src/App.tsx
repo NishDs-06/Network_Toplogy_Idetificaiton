@@ -1,5 +1,6 @@
 import './index.css';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useDataLoader } from './hooks/useDataLoader';
 import { useNetworkStore } from './store/networkStore';
 import { Header } from './components/Header';
 import { LeftRail } from './components/LeftRail';
@@ -18,6 +19,9 @@ import { Suspense, lazy, useState, useEffect } from 'react';
 const TopologyGraph = lazy(() => import('./components/TopologyGraph').then(m => ({ default: m.TopologyGraph })));
 
 function App() {
+  // Load real data from backend API
+  const { isLoading, error, isConnected, reload } = useDataLoader();
+
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
 
@@ -36,6 +40,42 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [detailPopup, clearHighlights]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-3 border-[var(--accent-active)] border-t-transparent rounded-full animate-spin"></div>
+          <span className="font-mono-data text-[var(--text-secondary)]">Loading network data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show connection status banner if using demo data
+  const ConnectionBanner = () => (
+    !isConnected && error ? (
+      <div className="bg-[var(--status-warning)]/20 border-b border-[var(--status-warning)] px-4 py-2 flex items-center justify-between">
+        <span className="font-mono-data text-xs text-[var(--status-warning)]">
+          ⚠️ {error} — Showing demo data
+        </span>
+        <button
+          onClick={reload}
+          className="text-xs font-mono-data text-[var(--accent-active)] hover:underline"
+        >
+          Retry Connection
+        </button>
+      </div>
+    ) : isConnected ? (
+      <div className="bg-[var(--status-healthy)]/10 border-b border-[var(--status-healthy)] px-4 py-1 flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-[var(--status-healthy)] animate-pulse"></span>
+        <span className="font-mono-data text-xs text-[var(--status-healthy)]">
+          Connected to backend — Real ML data loaded
+        </span>
+      </div>
+    ) : null
+  );
 
   // Render a visualization based on view type
   const renderVisualization = (view: 'heatmap' | 'topology' | 'propagation') => {
@@ -189,6 +229,9 @@ function App() {
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-[var(--bg-primary)]">
       {/* Header */}
       <Header />
+
+      {/* Connection Status Banner */}
+      <ConnectionBanner />
 
       {/* Main scrollable content */}
       <div className="flex-1 flex overflow-hidden">

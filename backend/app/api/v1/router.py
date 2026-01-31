@@ -16,9 +16,17 @@ from app.api.v1.routes import (
     visualizations,
     batch,
     health,
+    frontend,
 )
 
 router = APIRouter()
+
+# Frontend integration endpoints (matches InstructionsToIntegrate.md)
+router.include_router(
+    frontend.router,
+    prefix="/api",
+    tags=["Frontend API"],
+)
 
 # Data ingestion endpoints
 router.include_router(
@@ -67,3 +75,4 @@ router.include_router(
     health.router,
     tags=["Monitoring"],
 )
+

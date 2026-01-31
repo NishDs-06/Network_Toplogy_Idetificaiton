@@ -106,27 +106,35 @@ export function BottomPanel() {
                     <h3 className="section-title">Recommendations</h3>
                 </div>
                 <div className="section-content recommendations-grid">
-                    <div className="rec-card">
-                        <div className="rec-badge action">ACTION</div>
-                        <div className="rec-body">
-                            <p className="rec-title">Investigate shared fronthaul segment</p>
-                            <p className="rec-desc">Link 1 and Link 2 show 78% correlation - shared infrastructure likely causing synchronized congestion</p>
+                    {insights.slice(0, 3).map((insight, idx) => (
+                        <div key={`rec-${idx}`} className="rec-card">
+                            <div className={`rec-badge ${insight.type === 'critical' ? 'action' :
+                                insight.type === 'warning' ? 'monitor' : 'info'
+                                }`}>
+                                {insight.type === 'critical' ? 'ACTION' :
+                                    insight.type === 'warning' ? 'MONITOR' : 'INFO'}
+                            </div>
+                            <div className="rec-body">
+                                <p className="rec-title">
+                                    {insight.message.slice(0, 35)}{insight.message.length > 35 ? '...' : ''}
+                                </p>
+                                <p className="rec-desc">
+                                    {insight.message.length > 35 ? insight.message.slice(35, 100) : 'Based on analysis'}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div className="rec-card">
-                        <div className="rec-badge monitor">MONITOR</div>
-                        <div className="rec-body">
-                            <p className="rec-title">Cell 06 elevated anomaly</p>
-                            <p className="rec-desc">89% confidence - monitor for 15 minute window before escalation</p>
-                        </div>
-                    </div>
-                    <div className="rec-card">
-                        <div className="rec-badge info">INFO</div>
-                        <div className="rec-body">
-                            <p className="rec-title">Topology stable</p>
-                            <p className="rec-desc">4 groups identified with 94% confidence. No structural changes detected.</p>
-                        </div>
-                    </div>
+                    ))}
+                    {insights.length === 0 && (
+                        <>
+                            <div className="rec-card">
+                                <div className="rec-badge info">INFO</div>
+                                <div className="rec-body">
+                                    <p className="rec-title">Topology stable</p>
+                                    <p className="rec-desc">All groups identified with high confidence</p>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -144,9 +152,9 @@ export function BottomPanel() {
                             className="anomaly-chip"
                         >
                             <span className="status-dot critical"></span>
-                            <span className="chip-id">{anomaly.id.toUpperCase()}</span>
-                            <span className="chip-score">
-                                {((anomaly.anomalyScore || 0) * 100).toFixed(0)}%
+                            <span className="chip-id">{anomaly.name || anomaly.id.toUpperCase()}</span>
+                            <span className="chip-score" title="Confidence Score">
+                                {((anomaly.confidence ?? anomaly.anomalyScore ?? 0) * 100).toFixed(0)}% conf
                             </span>
                         </button>
                     ))}

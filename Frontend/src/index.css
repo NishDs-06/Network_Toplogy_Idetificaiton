@@ -695,8 +695,8 @@ body {
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-subtle);
   position: relative;
-  max-height: 350px;
-  overflow-y: auto;
+  /* Removed max-height and overflow to allow natural page scrolling */
+  padding-bottom: 24px;
 }
 
 .bottom-section {
