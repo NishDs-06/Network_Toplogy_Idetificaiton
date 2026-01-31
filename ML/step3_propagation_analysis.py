@@ -1,70 +1,90 @@
 import pandas as pd
+import numpy as np
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance import squareform
 from pathlib import Path
 
+# ==================================================
+# Paths
+# ==================================================
 BASE_DIR = Path(__file__).resolve().parents[1]
-ML_OUT = BASE_DIR / "ML" / "outputs"
+OUT_DIR = BASE_DIR / "Clustering" / "outputs"
+OUT_DIR.mkdir(exist_ok=True)
 
-# ✅ CORRECT clustering output path
-CLUSTER_FILE = (
-    BASE_DIR
-    / "Clustering"
-    / "outputs"
-    / "relative_fronthaul_groups.csv"
+SIMILARITY_PATH = OUT_DIR / "similarity_matrix.csv"
+OUTPUT_FILE = OUT_DIR / "relative_fronthaul_groups.csv"
+
+# ==================================================
+# Load similarity matrix
+# ==================================================
+similarity = pd.read_csv(SIMILARITY_PATH, index_col=0)
+
+# Normalize labels
+similarity.index = similarity.index.astype(int)
+similarity.columns = similarity.columns.astype(int)
+similarity = similarity.loc[similarity.index, similarity.index]
+
+# Sanity check
+assert similarity.shape[0] == similarity.shape[1], "Similarity matrix must be square"
+
+# ==================================================
+# Similarity → Distance
+# ==================================================
+distance_matrix = 1.0 - similarity
+condensed_distance = squareform(distance_matrix.values, checks=False)
+
+# ==================================================
+# Hierarchical clustering (RELATIVE topology only)
+# ==================================================
+linkage_matrix = linkage(condensed_distance, method="average")
+
+# Adaptive cut (robust, no hallucination)
+upper_triangle = distance_matrix.values[
+    np.triu_indices_from(distance_matrix, k=1)
+]
+
+DISTANCE_THRESHOLD = np.median(upper_triangle) + 0.5 * np.std(upper_triangle)
+
+cluster_labels = fcluster(
+    linkage_matrix,
+    t=DISTANCE_THRESHOLD,
+    criterion="distance"
 )
 
+# ==================================================
+# Build topology table
+# ==================================================
+topology_table = pd.DataFrame({
+    "cell_id": similarity.index,
+    "relative_group": cluster_labels
+}).sort_values("relative_group")
 
-# ---------------- LOAD DATA ----------------
-anomalies = pd.read_csv(ML_OUT / "cell_anomalies.csv")
-groups = pd.read_csv(CLUSTER_FILE)
+# ==================================================
+# Color assignment (frontend only)
+# ==================================================
+COLOR_MAP = [
+    "red", "blue", "green", "orange", "purple",
+    "brown", "pink", "gray", "olive", "cyan"
+]
 
-# Normalize column name
-groups = groups.rename(columns={"relative_group": "group_id"})
+unique_groups = sorted(topology_table["relative_group"].unique())
 
-# Merge anomaly + topology
-df = anomalies.merge(groups[["cell_id", "group_id"]], on="cell_id", how="inner")
+group_colors = {
+    grp: COLOR_MAP[i % len(COLOR_MAP)]
+    for i, grp in enumerate(unique_groups)
+}
 
-results = []
+topology_table["group_color"] = topology_table["relative_group"].map(group_colors)
 
-# ---------------- PROPAGATION LOGIC ----------------
-for group_id, gdf in df.groupby("group_id"):
-    pivot = gdf.pivot_table(
-        index="slot_id",
-        columns="cell_id",
-        values="anomaly",
-        fill_value=0
-    )
+# ==================================================
+# Save output (CRITICAL CONTRACT)
+# ==================================================
+topology_table.to_csv(OUTPUT_FILE, index=False)
 
-    # Simultaneous anomalies = congestion propagation signal
-    simultaneous_slots = pivot[pivot.sum(axis=1) >= 2]
-    simultaneous_count = len(simultaneous_slots)
-
-    # Confidence: normalized propagation strength
-    confidence = simultaneous_count / max(len(pivot), 1)
-
-    # Leader inference: earliest anomaly per slot
-    leader_counts = {cell: 0 for cell in pivot.columns}
-
-    for _, row in simultaneous_slots.iterrows():
-        active_cells = row[row == 1].index.tolist()
-        if active_cells:
-            leader_counts[active_cells[0]] += 1
-
-    leader_cell = max(leader_counts, key=leader_counts.get)
-
-    results.append({
-        "group_id": int(group_id),
-        "cells_in_group": list(map(int, pivot.columns)),
-        "simultaneous_events": int(simultaneous_count),
-        "leader_cell": int(leader_cell),
-        "group_confidence": round(confidence, 4)
-    })
-
-# ---------------- SAVE ----------------
-propagation_df = pd.DataFrame(results)
-propagation_df.to_csv(
-    ML_OUT / "congestion_propagation.csv",
-    index=False
-)
-
-print("[DONE] Congestion propagation analysis complete")
-print(propagation_df)
+# ==================================================
+# Logs
+# ==================================================
+print("[DONE] Relative fronthaul topology inferred")
+print("Cells :", topology_table['cell_id'].nunique())
+print("Groups:", topology_table['relative_group'].nunique())
+print(f"Saved to: {OUTPUT_FILE}")

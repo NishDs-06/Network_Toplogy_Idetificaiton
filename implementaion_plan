@@ -1,0 +1,37 @@
+Fronthaul Network Intelligence System - Frontend Build
+Phase 1: Project Setup & Core Infrastructure
+ Initialize Vite + React + TypeScript project in Frontend folder
+ Configure custom Tailwind with design system tokens
+ Add Google Fonts (Geist Mono, Inter, IBM Plex Mono)
+ Create base CSS with design tokens
+Phase 2: Layout & Navigation
+Build command center layout structure (header, left rail, main canvas, right panel, footer)..doing before model expired
+ Implement keyboard shortcuts (H, T, P, ESC)
+ Create view mode switching (Explore, Focus, Compare, Timeline)
+Phase 3: Interactive Heatmap (Centerpiece)
+ Build canvas-based similarity heatmap with D3 color scale
+ Implement cell hover states (tooltip, row/column highlight)
+ Implement cell click behavior (isolation, comparison mode)
+ Add crosshair cursor
+Phase 4: Topology Force Graph
+ Integrate D3-force or react-force-graph-2d
+ Custom node rendering (groups, anomalies with pulse)
+ Edge rendering (thickness by similarity, opacity by confidence)
+ Hover/click interactions (zoom, focus, expand)
+Phase 5: Propagation Flow Diagram
+ Build Sankey-inspired SVG flow visualization
+ Time axis with flow animations
+ Flow state coloring (healthy, degraded, critical)
+Phase 6: Intelligence Panel
+ LLM insights streaming component (character-by-character)
+ Recommendation cards
+ Anomaly list with dot notation status
+Phase 7: Supporting Features
+ File upload controls
+ Export as PNG/SVG with watermark
+ Temporal scrubber component
+ Real-time status indicators
+Phase 8: Polish & Performance
+ Micro-animations on data updates
+ Performance optimization for 576+ cell rendering
+ Final styling pass

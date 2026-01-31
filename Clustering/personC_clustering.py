@@ -1,95 +1,72 @@
-import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import squareform
+from pathlib import Path
 
+# ==================================================
+# Paths
+# ==================================================
+BASE_DIR = Path(__file__).resolve().parents[1]
+OUT_DIR = BASE_DIR / "Clustering" / "outputs"
+OUT_DIR.mkdir(exist_ok=True)
 
-def infer_topology(similarity_matrix: pd.DataFrame):
-    """
-    Contract #3: Relative Topology Identification (Round 1)
+SIMILARITY_PATH = OUT_DIR / "similarity_matrix.csv"
 
-    Input:
-        similarity_matrix (pd.DataFrame): symmetric similarity matrix
-    Output:
-        topology_result (dict): cell_id -> group_name
-        link_groups (dict): group_name -> list[cell_id]
-    """
+# ==================================================
+# Load similarity matrix
+# ==================================================
+similarity = pd.read_csv(SIMILARITY_PATH, index_col=0)
 
-    # ---- Sanity checks ----
-    assert similarity_matrix.shape[0] == similarity_matrix.shape[1], "Matrix must be square"
-    assert (similarity_matrix.index == similarity_matrix.columns).all(), "Index/columns mismatch"
+# Normalize labels
+similarity.index = similarity.index.astype(int)
+similarity.columns = similarity.columns.astype(int)
+similarity = similarity.loc[similarity.index, similarity.index]
 
-    # ---- Similarity → Distance ----
-    distance_matrix = 1.0 - similarity_matrix
-    condensed_distance = squareform(distance_matrix.values, checks=False)
+assert similarity.shape[0] == similarity.shape[1], "Similarity matrix must be square"
 
-    # ---- Hierarchical clustering ----
-    linkage_matrix = linkage(condensed_distance, method="average")
+# ==================================================
+# Hierarchical clustering (relative topology)
+# ==================================================
+distance_matrix = 1.0 - similarity
+condensed_distance = squareform(distance_matrix.values, checks=False)
 
-    # Round-1 constraint: infer relative grouping only
-    cluster_labels = fcluster(linkage_matrix, t=2, criterion="maxclust")
+linkage_matrix = linkage(condensed_distance, method="average")
 
-    topology_result = {}
-    link_groups = {}
+DISTANCE_THRESHOLD = 0.6
+cluster_labels = fcluster(
+    linkage_matrix,
+    t=DISTANCE_THRESHOLD,
+    criterion="distance"
+)
 
-    for cell_id, cluster_id in zip(similarity_matrix.index, cluster_labels):
-        group_name = f"Group_{cluster_id}"
-        topology_result[cell_id] = group_name
-        link_groups.setdefault(group_name, []).append(cell_id)
+# ==================================================
+# Build output table
+# ==================================================
+topology_table = pd.DataFrame({
+    "cell_id": similarity.index,
+    "relative_group": cluster_labels
+}).sort_values("relative_group")
 
-    return topology_result, link_groups
+# Color assignment (frontend only)
+COLOR_MAP = [
+    "red", "blue", "green", "orange", "purple",
+    "brown", "pink", "gray", "olive", "cyan"
+]
 
+group_colors = {
+    grp: COLOR_MAP[i % len(COLOR_MAP)]
+    for i, grp in enumerate(sorted(topology_table.relative_group.unique()))
+}
 
-if __name__ == "__main__":
+topology_table["group_color"] = topology_table["relative_group"].map(group_colors)
 
-    # ------------------------------------------------------------------
-    # INPUT: Similarity matrix from Person B
-    # ------------------------------------------------------------------
-    similarity_matrix = pd.DataFrame(
-        [
-            [1.000000, 0.409153, 0.446456],
-            [0.409153, 1.000000, 0.436335],
-            [0.446456, 0.436335, 1.000000],
-        ],
-        index=["cell_01", "cell_02", "cell_03"],
-        columns=["cell_01", "cell_02", "cell_03"],
-    )
+# ==================================================
+# Save output
+# ==================================================
+OUTPUT_FILE = OUT_DIR / "relative_fronthaul_groups.csv"
+topology_table.to_csv(OUTPUT_FILE, index=False)
 
-    topology_result, link_groups = infer_topology(similarity_matrix)
-
-    # ------------------------------------------------------------------
-    # HUMAN-READABLE OUTPUT (Round-1 Visualization)
-    # ------------------------------------------------------------------
-    print("\nRelative Fronthaul Topology (Round-1)\n")
-
-    for group, cells in link_groups.items():
-        if len(cells) > 1:
-            print("        ┌──────────┐")
-            print(f"        │ {cells[0]} │")
-            print("        └────┬─────┘")
-            print("             │")
-            print("     Shared Fronthaul Link")
-            print("             │")
-            print("        ┌────┴─────┐")
-            print(f"        │ {cells[1]} │")
-            print("        └──────────┘\n")
-        else:
-            print("        ┌──────────┐")
-            print(f"        │ {cells[0]} │")
-            print("        └──────────┘")
-            print("   (Less correlated / independent)\n")
-
-    # ------------------------------------------------------------------
-    # EXPORT FOR ML + BACKEND (CRITICAL)
-    # ------------------------------------------------------------------
-    rows = []
-    for cell, group in topology_result.items():
-        cell_num = int(cell.split("_")[1])     # cell_01 → 1
-        group_num = int(group.split("_")[1])   # Group_1 → 1
-        rows.append({"cell_id": cell_num, "group_id": group_num})
-
-    groups_df = pd.DataFrame(rows).sort_values("cell_id")
-    groups_df.to_csv("groups.csv", index=False)
-
-    print("[OK] groups.csv exported")
-    print(groups_df)
+print("[DONE] Relative fronthaul topology inferred")
+print("Cells:", topology_table["cell_id"].nunique())
+print("Groups:", topology_table["relative_group"].nunique())
+print(f"Saved to: {OUTPUT_FILE}")
