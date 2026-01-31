@@ -1,0 +1,3 @@
+group_id,cells_in_group,simultaneous_events,likely_leader_cell
+1,"[1, 3]",0,1
+2,[2],0,2

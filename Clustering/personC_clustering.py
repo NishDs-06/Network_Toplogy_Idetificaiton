@@ -9,25 +9,24 @@ def infer_topology(similarity_matrix: pd.DataFrame):
     Contract #3: Relative Topology Identification (Round 1)
 
     Input:
-        similarity_matrix (pd.DataFrame)
+        similarity_matrix (pd.DataFrame): symmetric similarity matrix
     Output:
-        topology_result (dict)
-        link_groups (dict)
+        topology_result (dict): cell_id -> group_name
+        link_groups (dict): group_name -> list[cell_id]
     """
 
-    # Sanity checks
-    assert similarity_matrix.shape[0] == similarity_matrix.shape[1]
-    assert (similarity_matrix.index == similarity_matrix.columns).all()
+    # ---- Sanity checks ----
+    assert similarity_matrix.shape[0] == similarity_matrix.shape[1], "Matrix must be square"
+    assert (similarity_matrix.index == similarity_matrix.columns).all(), "Index/columns mismatch"
 
-    # Convert similarity → distance
-    distance_matrix = 1 - similarity_matrix
+    # ---- Similarity → Distance ----
+    distance_matrix = 1.0 - similarity_matrix
     condensed_distance = squareform(distance_matrix.values, checks=False)
 
-    # Hierarchical clustering
+    # ---- Hierarchical clustering ----
     linkage_matrix = linkage(condensed_distance, method="average")
 
-    # For Round-1: do NOT overclaim exact number of links
-    # We cut at 2 clusters to infer relative grouping
+    # Round-1 constraint: infer relative grouping only
     cluster_labels = fcluster(linkage_matrix, t=2, criterion="maxclust")
 
     topology_result = {}
@@ -43,46 +42,54 @@ def infer_topology(similarity_matrix: pd.DataFrame):
 
 if __name__ == "__main__":
 
-    # Similarity matrix provided by Person B
+    # ------------------------------------------------------------------
+    # INPUT: Similarity matrix from Person B
+    # ------------------------------------------------------------------
     similarity_matrix = pd.DataFrame(
         [
-            [1.0, 0.409153, 0.446456],
-            [0.409153, 1.0, 0.436335],
-            [0.446456, 0.436335, 1.0]
+            [1.000000, 0.409153, 0.446456],
+            [0.409153, 1.000000, 0.436335],
+            [0.446456, 0.436335, 1.000000],
         ],
         index=["cell_01", "cell_02", "cell_03"],
-        columns=["cell_01", "cell_02", "cell_03"]
+        columns=["cell_01", "cell_02", "cell_03"],
     )
 
     topology_result, link_groups = infer_topology(similarity_matrix)
 
-    # ----- FINAL ROUND-1 OUTPUT -----
-
-    print("\nRelative Fronthaul Topology (Illustrative)\n")
-
-    shared_groups = []
-    independent_cells = []
+    # ------------------------------------------------------------------
+    # HUMAN-READABLE OUTPUT (Round-1 Visualization)
+    # ------------------------------------------------------------------
+    print("\nRelative Fronthaul Topology (Round-1)\n")
 
     for group, cells in link_groups.items():
         if len(cells) > 1:
-            shared_groups.append(cells)
+            print("        ┌──────────┐")
+            print(f"        │ {cells[0]} │")
+            print("        └────┬─────┘")
+            print("             │")
+            print("     Shared Fronthaul Link")
+            print("             │")
+            print("        ┌────┴─────┐")
+            print(f"        │ {cells[1]} │")
+            print("        └──────────┘\n")
         else:
-            independent_cells.extend(cells)
+            print("        ┌──────────┐")
+            print(f"        │ {cells[0]} │")
+            print("        └──────────┘")
+            print("   (Less correlated / independent)\n")
 
-    for group in shared_groups:
-        print("        ┌──────────┐")
-        print(f"        │ {group[0]} │")
-        print("        └────┬─────┘")
-        print("             │")
-        print("     Shared Fronthaul Link")
-        print("             │")
-        print("        ┌────┴─────┐")
-        print(f"        │ {group[1]} │")
-        print("        └──────────┘\n")
+    # ------------------------------------------------------------------
+    # EXPORT FOR ML + BACKEND (CRITICAL)
+    # ------------------------------------------------------------------
+    rows = []
+    for cell, group in topology_result.items():
+        cell_num = int(cell.split("_")[1])     # cell_01 → 1
+        group_num = int(group.split("_")[1])   # Group_1 → 1
+        rows.append({"cell_id": cell_num, "group_id": group_num})
 
-    for cell in independent_cells:
-        print("        ┌──────────┐")
-        print(f"        │ {cell} │")
-        print("        └──────────┘")
-        print("   (Less correlated / independent)\n")
+    groups_df = pd.DataFrame(rows).sort_values("cell_id")
+    groups_df.to_csv("groups.csv", index=False)
 
+    print("[OK] groups.csv exported")
+    print(groups_df)
