@@ -381,19 +381,26 @@ def generate_cells_for_api(
     if anomaly_path.exists():
         try:
             anomaly_df = pd.read_csv(anomaly_path)
-            # Group by cell and get max confidence (worst anomaly)
+            # FIX: Use mean() to get anomaly RATE instead of max()
+            # This gives the proportion of slots that are anomalous
             cell_anomalies = anomaly_df.groupby("cell_id").agg({
-                "anomaly": "max",
-                "confidence": "max"
+                "anomaly": "mean",     # Rate of anomalous slots (0.0 to 1.0)
+                "confidence": "mean"   # Average confidence across slots
             }).reset_index()
+            
+            ANOMALY_RATE_THRESHOLD = 0.25  # Only flag if >25% of slots are anomalous
             
             for _, row in cell_anomalies.iterrows():
                 cell_id = int(row["cell_id"])
+                anomaly_rate = float(row["anomaly"])
+                avg_confidence = float(row["confidence"])
+                
                 anomaly_data[cell_id] = {
-                    "is_anomaly": bool(row["anomaly"]),
-                    "confidence": float(row["confidence"])
+                    "is_anomaly": anomaly_rate > ANOMALY_RATE_THRESHOLD,
+                    "confidence": round(anomaly_rate, 3)  # Use rate as confidence
                 }
-            logger.info(f"Loaded anomaly data for {len(anomaly_data)} cells")
+            logger.info(f"Loaded anomaly data for {len(anomaly_data)} cells, " 
+                       f"{sum(1 for v in anomaly_data.values() if v['is_anomaly'])} flagged as anomalies")
         except Exception as e:
             logger.warning(f"Failed to load anomaly data: {e}")
     

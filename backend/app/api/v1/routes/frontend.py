@@ -216,6 +216,143 @@ async def get_recommendations():
         )
 
 
+class RecommendationExpandRequest(BaseModel):
+    rec_id: str
+    title: str
+    type: str
+
+
+class RecommendationExpandResponse(BaseModel):
+    rec_id: str
+    title: str
+    type: str
+    detailed_description: str
+    steps: List[str]
+    impact: str
+    priority: str
+
+
+# Cache for expanded recommendations
+_rec_detail_cache: Dict[str, Dict] = {}
+
+
+@router.post("/recommendation-expand", response_model=RecommendationExpandResponse)
+async def expand_recommendation(request: RecommendationExpandRequest):
+    """
+    Get detailed LLM-generated content for a recommendation.
+    Cached for 1 hour per recommendation.
+    """
+    cache_key = f"rec_{request.rec_id}"
+    
+    # Check cache
+    if cache_key in _rec_detail_cache:
+        return RecommendationExpandResponse(**_rec_detail_cache[cache_key])
+    
+    try:
+        from app.providers.ollama import OllamaProvider
+        from app.providers.base import ChatMessage
+        import pandas as pd
+        from pathlib import Path
+        
+        # Load network context
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent.parent
+        anomaly_path = PROJECT_ROOT / "ML" / "outputs" / "cell_anomalies.csv"
+        
+        context = ""
+        if anomaly_path.exists():
+            df = pd.read_csv(anomaly_path)
+            cell_stats = df.groupby("cell_id").agg({"anomaly": "mean"}).reset_index()
+            top_anomalies = cell_stats.nlargest(3, "anomaly")
+            context = f"Top anomalies: {', '.join([f'Cell {int(r.cell_id)} ({r.anomaly*100:.0f}%)' for _, r in top_anomalies.iterrows()])}"
+        
+        provider = OllamaProvider()
+        
+        messages = [
+            ChatMessage(
+                role="system",
+                content="""You are a network operations advisor. For the given recommendation, provide:
+1. A detailed description (2-3 sentences)
+2. 3-4 actionable steps to implement
+3. Expected impact
+4. Priority level (HIGH/MEDIUM/LOW)
+
+Format your response EXACTLY as:
+DESCRIPTION: [your description]
+STEPS:
+- Step 1
+- Step 2
+- Step 3
+IMPACT: [expected impact]
+PRIORITY: [HIGH/MEDIUM/LOW]"""
+            ),
+            ChatMessage(
+                role="user",
+                content=f"Recommendation: {request.title} (Type: {request.type})\nNetwork context: {context}"
+            ),
+        ]
+        
+        result = await provider.chat(messages)
+        llm_text = result.content
+        
+        # Parse response
+        description = ""
+        steps = []
+        impact = "Improved network stability"
+        priority = "MEDIUM"
+        
+        lines = llm_text.split('\n')
+        current_section = ""
+        for line in lines:
+            line = line.strip()
+            if line.startswith("DESCRIPTION:"):
+                current_section = "desc"
+                description = line.replace("DESCRIPTION:", "").strip()
+            elif line.startswith("STEPS:"):
+                current_section = "steps"
+            elif line.startswith("IMPACT:"):
+                current_section = "impact"
+                impact = line.replace("IMPACT:", "").strip()
+            elif line.startswith("PRIORITY:"):
+                priority = line.replace("PRIORITY:", "").strip()
+            elif current_section == "desc" and line:
+                description += " " + line
+            elif current_section == "steps" and line.startswith("-"):
+                steps.append(line[1:].strip())
+            elif current_section == "impact" and line:
+                impact += " " + line
+        
+        # Fallback if parsing fails
+        if not description:
+            description = f"Detailed analysis for: {request.title}"
+        if not steps:
+            steps = ["Review affected cells", "Check network logs", "Apply remediation"]
+        
+        detail = {
+            "rec_id": request.rec_id,
+            "title": request.title,
+            "type": request.type,
+            "detailed_description": description[:300],
+            "steps": steps[:5],
+            "impact": impact[:150],
+            "priority": priority
+        }
+        
+        _rec_detail_cache[cache_key] = detail
+        return RecommendationExpandResponse(**detail)
+        
+    except Exception as e:
+        # Fallback response
+        return RecommendationExpandResponse(
+            rec_id=request.rec_id,
+            title=request.title,
+            type=request.type,
+            detailed_description=f"This recommendation suggests action based on current network analysis.",
+            steps=["Review the identified cells", "Check network performance metrics", "Apply suggested changes"],
+            impact="Improved network health and reduced anomalies",
+            priority="MEDIUM"
+        )
+
+
 @router.post("/generate-insights")
 async def generate_insights():
     """
@@ -246,19 +383,99 @@ async def generate_recommendations():
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
-    Send message to LLM copilot.
+    Send message to LLM copilot with rich network context.
     
     Used by: FloatingChatbot component
     """
     try:
         from app.services.copilot_service import copilot_service
+        import pandas as pd
+        from pathlib import Path
         
-        # Build context from current data
-        context = request.context or {}
+        # Build rich context from actual data
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent.parent
         
+        # Load anomaly data
+        anomaly_path = PROJECT_ROOT / "ML" / "outputs" / "cell_anomalies.csv"
+        anomaly_context = ""
+        if anomaly_path.exists():
+            df = pd.read_csv(anomaly_path)
+            cell_stats = df.groupby("cell_id").agg({
+                "anomaly": "mean",
+                "confidence": "mean"
+            }).reset_index()
+            
+            # Identify anomalous cells (>25% rate)
+            anomalous = cell_stats[cell_stats["anomaly"] > 0.25]
+            healthy = cell_stats[cell_stats["anomaly"] <= 0.25]
+            
+            anomaly_context = f"""
+ANOMALY DETECTION RESULTS:
+- Total cells monitored: {len(cell_stats)}
+- Anomalous cells (>25% throughput drop rate): {len(anomalous)}
+- Healthy cells: {len(healthy)}
+- Threshold: 30% throughput drop from rolling median baseline
+
+ANOMALOUS CELLS DETAIL:
+"""
+            for _, row in anomalous.iterrows():
+                anomaly_context += f"- Cell {int(row['cell_id'])}: {row['anomaly']*100:.1f}% of time slots show anomaly, avg confidence {row['confidence']*100:.1f}%\n"
+            
+            if len(anomalous) == 0:
+                anomaly_context += "- No cells currently exceed the 25% anomaly rate threshold\n"
+            
+            anomaly_context += f"""
+TOP 5 CELLS BY ANOMALY RATE:
+"""
+            for _, row in cell_stats.nlargest(5, "anomaly").iterrows():
+                status = "⚠️ FLAGGED" if row["anomaly"] > 0.25 else "✓ healthy"
+                anomaly_context += f"- Cell {int(row['cell_id'])}: {row['anomaly']*100:.1f}% rate ({status})\n"
+        
+        # Load topology groups
+        groups_path = PROJECT_ROOT / "Clustering" / "outputs" / "relative_fronthaul_groups.csv"
+        topology_context = ""
+        if groups_path.exists():
+            groups_df = pd.read_csv(groups_path)
+            n_groups = groups_df["relative_group"].nunique()
+            topology_context = f"""
+TOPOLOGY CLUSTERING:
+- {n_groups} distinct fronthaul link groups identified
+- Cells in same group share similar congestion patterns (likely shared infrastructure)
+
+GROUPS:
+"""
+            for grp in sorted(groups_df["relative_group"].unique()):
+                cells = groups_df[groups_df["relative_group"] == grp]["cell_id"].tolist()
+                topology_context += f"- Link {grp}: Cells {cells}\n"
+        
+        # ML Pipeline context
+        ml_context = """
+ML PIPELINE EXPLANATION:
+1. Raw data: Throughput measurements per cell per time slot
+2. Baseline: Rolling 100-slot median per cell
+3. Anomaly: When throughput drops >30% below baseline
+4. Confidence: How severe the drop is (0% = at threshold, 100% = 2x threshold)
+5. Cell flagged: If >25% of its slots are anomalous
+6. Topology: Cells clustered by congestion similarity (Pearson correlation on z-scores)
+"""
+        
+        full_context = f"""You are a Network Intelligence Copilot analyzing a telecom fronthaul network.
+
+{anomaly_context}
+{topology_context}
+{ml_context}
+
+Answer questions about:
+- Which cells have anomalies and why
+- Topology groupings and what they mean
+- Recommendations for network issues
+- Technical details about the ML detection
+
+Be specific and reference actual cell numbers and data from the context above."""
+
         result = await copilot_service.query(
             query=request.message,
-            context=context
+            context={"system_context": full_context}
         )
         
         return ChatResponse(

@@ -98,18 +98,23 @@ class CopilotService:
         
         Args:
             query: Natural language question
-            context: Context including report_id, topology_id
+            context: Context including system_context, report_id, topology_id
             
         Returns:
             Query response with answer
         """
         query_id = generate_id("qry")
         
-        # Build context from related data
+        # Check for rich system context (from chat endpoint)
+        system_prompt = "You are a network intelligence assistant. Answer questions about network topology, congestion, and anomalies based on the provided context."
         context_data = ""
         supporting_data = {}
         
         if context:
+            # Use rich system context if provided
+            if context.get("system_context"):
+                system_prompt = context["system_context"]
+            
             if context.get("report_id"):
                 report = storage.get_report(context["report_id"])
                 if report:
@@ -125,9 +130,14 @@ class CopilotService:
         # Query LLM
         try:
             messages = [
-                ChatMessage(role="system", content="You are a network intelligence assistant. Answer questions about network topology, congestion, and anomalies based on the provided context."),
-                ChatMessage(role="user", content=f"Context:\n{context_data}\n\nQuestion: {query}"),
+                ChatMessage(role="system", content=system_prompt),
             ]
+            
+            # Add context if we have additional data beyond system prompt
+            if context_data:
+                messages.append(ChatMessage(role="user", content=f"Additional context:\n{context_data}\n\nQuestion: {query}"))
+            else:
+                messages.append(ChatMessage(role="user", content=query))
             
             result = await self.provider.chat(messages)
             answer = result.content
