@@ -7,19 +7,7 @@ An intelligent system that analyzes 5G fronthaul network data to automatically i
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.12+-green)
 ![React](https://img.shields.io/badge/react-19-61DAFB)
-![License](https://img.shields.io/badge/license-MIT-yellow)
-
----
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Quick Start](#-quick-start)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [API Documentation](#-api-documentation)
-- [Project Structure](#-project-structure)
+![Status](https://img.shields.io/badge/status-active-success)
 
 ---
 
@@ -78,7 +66,7 @@ An intelligent system that analyzes 5G fronthaul network data to automatically i
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/Network_Toplogy_Idetificaiton.git
+git clone https://github.com/NishDs-06/Network_Toplogy_Idetificaiton.git
 cd Network_Toplogy_Idetificaiton
 ```
 
@@ -300,22 +288,51 @@ Network_Toplogy_Idetificaiton/
 
 ---
 
-## 🤝 Contributing
+<div align="center">
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+## 👨‍💻 The Team
+
+<table>
+<tr>
+<td align="center">
+<a href="https://github.com/NishDs-06">
+<img src="https://github.com/NishDs-06.png" width="100px;" alt="Nishanth"/><br />
+<sub><b>✨ Nishanth ✨</b></sub>
+</a><br />
+<sub>🔧 Full Stack & ML</sub>
+</td>
+<td align="center">
+<a href="https://github.com/">
+<img src="https://avatars.githubusercontent.com/u/583231?v=4" width="100px;" alt="Teammate"/><br />
+<sub><b>Team Member</b></sub>
+</a><br />
+<sub>📊 Data Science</sub>
+</td>
+<td align="center">
+<a href="https://github.com/">
+<img src="https://avatars.githubusercontent.com/u/583231?v=4" width="100px;" alt="Teammate"/><br />
+<sub><b>Team Member</b></sub>
+</a><br />
+<sub>🎨 Frontend</sub>
+</td>
+</tr>
+</table>
 
 ---
 
-## 📄 License
+### 🌟 Star this repo if you found it helpful!
 
-This project is licensed under the MIT License.
+<p>
+<a href="https://github.com/NishDs-06/Network_Toplogy_Idetificaiton/stargazers">
+<img src="https://img.shields.io/github/stars/NishDs-06/Network_Toplogy_Idetificaiton?style=social" alt="Stars">
+</a>
+<a href="https://github.com/NishDs-06/Network_Toplogy_Idetificaiton/network/members">
+<img src="https://img.shields.io/github/forks/NishDs-06/Network_Toplogy_Idetificaiton?style=social" alt="Forks">
+</a>
+</p>
 
----
+**Built with ❤️ for telecom network intelligence**
 
-## 👥 Team
+*© 2026 Network Topology Team*
 
-Built with ❤️ for telecom network intelligence.
+</div>
