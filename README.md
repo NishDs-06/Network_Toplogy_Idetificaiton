@@ -290,30 +290,43 @@ Network_Toplogy_Idetificaiton/
 
 <div align="center">
 
-## 👨‍💻 The Team
+## 👨‍💻 The Dream Team 🚀
 
 <table>
 <tr>
 <td align="center">
 <a href="https://github.com/NishDs-06">
-<img src="https://github.com/NishDs-06.png" width="100px;" alt="Nishanth"/><br />
-<sub><b>✨ Nishanth ✨</b></sub>
+<img src="https://github.com/NishDs-06.png" width="120px;" alt="Nishanth" style="border-radius:50%"/><br />
+<sub><b>🔥 Nishanth 🔥</b></sub>
 </a><br />
-<sub>🔧 Full Stack & ML</sub>
+<sub>💻 Backend Wizard & Full Stack</sub><br/>
+<sub><i>"The architect behind it all"</i></sub>
 </td>
 <td align="center">
-<a href="https://github.com/">
-<img src="https://avatars.githubusercontent.com/u/583231?v=4" width="100px;" alt="Teammate"/><br />
-<sub><b>Team Member</b></sub>
+<a href="https://github.com/Amritak15">
+<img src="https://github.com/Amritak15.png" width="120px;" alt="Amrita" style="border-radius:50%"/><br />
+<sub><b>⚡ Amrita ⚡</b></sub>
 </a><br />
-<sub>📊 Data Science</sub>
+<sub>🛠️ Backend Beast</sub><br/>
+<sub><i>"APIs? Consider it done."</i></sub>
+</td>
+</tr>
+<tr>
+<td align="center">
+<a href="https://github.com/Harshita271105">
+<img src="https://github.com/Harshita271105.png" width="120px;" alt="Harshita" style="border-radius:50%"/><br />
+<sub><b>✨ Harshita ✨</b></sub>
+</a><br />
+<sub>🎨 Frontend GOAT</sub><br/>
+<sub><i>"Making pixels look pretty"</i></sub>
 </td>
 <td align="center">
-<a href="https://github.com/">
-<img src="https://avatars.githubusercontent.com/u/583231?v=4" width="100px;" alt="Teammate"/><br />
-<sub><b>Team Member</b></sub>
+<a href="https://github.com/Sanjayram3269">
+<img src="https://github.com/Sanjayram3269.png" width="120px;" alt="Sanjayram" style="border-radius:50%"/><br />
+<sub><b>🧠 Sanjayram 🧠</b></sub>
 </a><br />
-<sub>🎨 Frontend</sub>
+<sub>📊 ML & Data Preprocessing King</sub><br/>
+<sub><i>"Data whisperer extraordinaire"</i></sub>
 </td>
 </tr>
 </table>
