@@ -85,35 +85,10 @@ topology_table.to_csv("outputs/relative_fronthaul_groups.csv", index=False)
 # ==================================================
 # 2️⃣ SIMPLE NETWORK GRAPH
 # ==================================================
-G = nx.Graph()
+OUTPUT_FILE = OUT_DIR / "relative_fronthaul_groups.csv"
+topology_table.to_csv(OUTPUT_FILE, index=False)
 
-# Add nodes
-for cell in similarity.index:
-    grp = topology_table.loc[topology_table.cell_id == cell, "relative_group"].values[0]
-    G.add_node(cell, group=grp)
-
-# Connect nodes within same group
-for grp, cells in grouped_cells.items():
-    for i in range(len(cells)):
-        for j in range(i + 1, len(cells)):
-            G.add_edge(cells[i], cells[j])
-
-# Draw graph
-plt.figure(figsize=(10, 8))
-pos = nx.spring_layout(G, seed=42)
-
-node_colors = [
-    group_colors[G.nodes[n]["group"]] for n in G.nodes
-]
-
-nx.draw(
-    G,
-    pos,
-    with_labels=True,
-    node_color=node_colors,
-    node_size=800,
-    font_size=9
-)
-
-plt.title("Relative Fronthaul Topology (Graph View)")
-plt.show()
+print("[DONE] Relative fronthaul topology inferred")
+print("Cells:", topology_table["cell_id"].nunique())
+print("Groups:", topology_table["relative_group"].nunique())
+print(f"Saved to: {OUTPUT_FILE}")

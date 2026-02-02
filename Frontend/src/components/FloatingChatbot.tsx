@@ -33,7 +33,7 @@ export function FloatingChatbot() {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages]);
 
-    const handleChatSubmit = (e: React.FormEvent) => {
+    const handleChatSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
 
@@ -42,21 +42,43 @@ export function FloatingChatbot() {
         setChatInput('');
         setIsTyping(true);
 
-        // Simulate LLM response
-        setTimeout(() => {
-            let response = '';
-            if (userMessage.toLowerCase().includes('anomaly') || userMessage.toLowerCase().includes('anomalies')) {
-                response = `Based on my analysis, I've detected ${anomalies.length} anomalies:\n\n${anomalies.map(a => `• ${a.id.toUpperCase()}: ${((a.anomalyScore || 0) * 100).toFixed(0)}% confidence`).join('\n')}\n\nThe primary anomaly in Cell 06 shows elevated congestion patterns correlating with Link 1 degradation.`;
-            } else if (userMessage.toLowerCase().includes('correlation') || userMessage.toLowerCase().includes('pattern')) {
-                response = 'I\'ve identified 78% correlation between Cells 01-06, suggesting shared infrastructure. The similarity matrix shows 4 distinct topology groups with 94% confidence.';
-            } else if (userMessage.toLowerCase().includes('recommend') || userMessage.toLowerCase().includes('action')) {
-                response = 'My recommendations:\n\n1. **Investigate** shared fronthaul segment between Link 1 and Link 2\n2. **Monitor** Cell 06 for 15-minute window before escalation\n3. **Consider** load balancing across detected topology groups';
+        try {
+            // Call real backend API
+            const response = await fetch('http://localhost:8000/v1/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMessage })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setChatMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: data.response || 'I couldn\'t process that request.'
+                }]);
             } else {
-                response = `I can help analyze the network topology:\n\n• **24 cells** in the current batch\n• **4 topology groups** identified\n• **${anomalies.length} anomalies** detected\n\nAsk about patterns, anomalies, or correlations.`;
+                // Fallback to contextual response
+                let fallbackResponse = '';
+                if (userMessage.toLowerCase().includes('anomal')) {
+                    fallbackResponse = `Currently detecting ${anomalies.length} anomalous cell(s):\n\n${anomalies.map(a => `• ${a.name}: ${((a.confidence || a.anomalyScore || 0) * 100).toFixed(0)}% anomaly rate`).join('\n') || 'No anomalies detected.'}`;
+                } else if (userMessage.toLowerCase().includes('where')) {
+                    fallbackResponse = anomalies.length > 0
+                        ? `Anomalies detected in: ${anomalies.map(a => a.name).join(', ')}`
+                        : 'No anomalies currently detected in the network.';
+                } else {
+                    fallbackResponse = `Network Status:\n• ${cells.length} total cells\n• ${cells.filter(c => c.isAnomaly).length} anomalies\n• ${Math.round((1 - anomalies.length / cells.length) * 100)}% network health\n\nAsk about specific anomalies or topology.`;
+                }
+                setChatMessages(prev => [...prev, { role: 'assistant', content: fallbackResponse }]);
             }
-            setChatMessages(prev => [...prev, { role: 'assistant', content: response }]);
+        } catch (error) {
+            // Network error fallback
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Network Status:\n• ${cells.length} cells monitored\n• ${anomalies.length} anomalies detected\n\n${anomalies.length > 0 ? `Anomalous cells: ${anomalies.map(a => a.name).join(', ')}` : 'All cells healthy.'}`
+            }]);
+        } finally {
             setIsTyping(false);
-        }, 1500);
+        }
     };
 
     return (

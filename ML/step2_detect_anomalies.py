@@ -18,7 +18,7 @@ tp = (
 tp = tp.sort_values(["cell_id", "slot_id"])
 
 WINDOW = 100
-DROP_RATIO = 0.15
+DROP_RATIO = 0.30  # FIX: Increased from 0.15 - 30% drop is more significant
 
 rows = []
 
@@ -38,8 +38,10 @@ for cell_id, df in tp.groupby("cell_id"):
 
     df["anomaly"] = (df["drop_ratio"] > DROP_RATIO).astype(int)
 
+    # FIX: Better confidence calculation - scales from 0 at threshold to 1 at 2x threshold
+    # This gives gradual confidence instead of immediate clip to 1.0
     df["confidence"] = (
-        df["drop_ratio"] / DROP_RATIO
+        (df["drop_ratio"] - DROP_RATIO) / DROP_RATIO  # 0 at threshold, 1 at 2x threshold
     ).clip(0.0, 1.0)
 
     df.loc[df["anomaly"] == 0, "confidence"] = 0.0

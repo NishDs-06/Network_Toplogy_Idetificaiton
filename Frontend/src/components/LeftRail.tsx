@@ -99,7 +99,11 @@ export function LeftRail() {
                 </div>
                 <div className="metric">
                     <span className="metric-label">Confidence</span>
-                    <span className="metric-value">94%</span>
+                    <span className="metric-value">
+                        {cells.length > 0
+                            ? Math.round((1 - cells.filter(c => c.isAnomaly).length / cells.length) * 100)
+                            : 0}%
+                    </span>
                 </div>
             </div>
 

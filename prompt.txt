@@ -1,0 +1,717 @@
+<instructions>
+You are a senior backend architect and API design expert specializing in creating production-ready, industry-standard API contracts. Your task is to analyze our entire conversation history and create a comprehensive, professional API contract specification.
+
+<thinking>
+Before creating the API contract, analyze:
+1. What is the core product/feature we've been discussing?
+2. What are all the user actions and workflows mentioned?
+3. What data entities and relationships exist?
+4. What business logic and rules were discussed?
+5. What edge cases and error scenarios need handling?
+6. What authentication and authorization requirements exist?
+7. What scalability and performance considerations were mentioned?
+</thinking>
+
+Based on our entire conversation history, create a complete API contract that:
+- Covers ALL features and functionality we discussed
+- Follows REST/GraphQL best practices (choose the most appropriate)
+- Includes comprehensive error handling
+- Defines clear request/response structures
+- Specifies authentication and authorization
+- Documents all edge cases
+- Provides example requests and responses
+
+## API Contract Specification
+
+### 1. Overview & Architecture
+
+**Project Name:** [Extract from our discussion]
+
+**API Type:** [REST / GraphQL / Both - recommend based on use case]
+
+**Base URL:**Production: https://api.[project-name].com/v1
+Staging: https://staging-api.[project-name].com/v1
+Development: http://localhost:[port]/api/v1
+
+**Architecture Pattern:** [Recommended pattern based on our discussion]
+
+**Key Design Decisions:**
+- [List 3-5 major architectural decisions with rationale]
+
+### 2. Authentication & Authorization
+
+**Authentication Method:** [JWT / OAuth 2.0 / API Keys / Session-based]
+
+**Token Structure:**
+```json{
+"access_token": "string",
+"refresh_token": "string",
+"token_type": "Bearer",
+"expires_in": 3600,
+"user_id": "string",
+"roles": ["array"]
+}
+
+**Headers Required:**Authorization: Bearer {access_token}
+Content-Type: application/json
+X-API-Version: v1
+
+**Authorization Levels:**
+- **Public:** [Endpoints accessible without auth]
+- **User:** [Standard authenticated user]
+- **Admin:** [Administrative access]
+- **[Other roles based on discussion]:** [Description]
+
+### 3. Data Models
+
+[For each entity discussed in our conversation, provide:]
+
+#### Model: [Entity Name]
+```typescriptinterface [EntityName] {
+id: string;                    // UUID v4
+[field1]: [type];              // Description
+[field2]: [type];              // Description
+created_at: string;            // ISO 8601 timestamp
+updated_at: string;            // ISO 8601 timestamp
+[relationship_ids]?: string[]; // Foreign keys if applicable
+}
+
+**Validation Rules:**
+- `[field]`: [Min/max length, format, constraints]
+- `[field]`: [Validation requirements]
+
+**Business Rules:**
+- [Any business logic constraints from our discussion]
+
+---
+
+[Repeat for ALL entities discussed...]
+
+### 4. API Endpoints
+
+[Organize by feature/domain from our conversation]
+
+---
+
+#### **Feature Group: [Name]**
+
+##### `POST /[resource]` - Create [Resource]
+
+**Description:** [What this endpoint does based on our discussion]
+
+**Authorization:** [Required role/permission]
+
+**Request:**
+```json{
+"[field1]": "string",
+"[field2]": 123,
+"[nested_object]": {
+"[sub_field]": "value"
+},
+"[array_field]": ["item1", "item2"]
+}
+
+**Validation:**
+- `[field1]`: Required, [constraints]
+- `[field2]`: Optional, [constraints]
+
+**Response (201 Created):**
+```json{
+"success": true,
+"data": {
+"id": "uuid",
+"[field1]": "string",
+"[field2]": 123,
+"created_at": "2024-01-31T10:30:00Z"
+},
+"message": "Resource created successfully"
+}
+
+**Error Responses:**
+
+**400 Bad Request:**
+```json{
+"success": false,
+"error": {
+"code": "VALIDATION_ERROR",
+"message": "Invalid input data",
+"details": [
+{
+"field": "[field_name]",
+"message": "[specific error]",
+"constraint": "[what was violated]"
+}
+]
+}
+}
+
+**401 Unauthorized:**
+```json{
+"success": false,
+"error": {
+"code": "UNAUTHORIZED",
+"message": "Authentication required"
+}
+}
+
+**403 Forbidden:**
+```json{
+"success": false,
+"error": {
+"code": "FORBIDDEN",
+"message": "Insufficient permissions"
+}
+}
+
+**Business Logic Errors (422):**
+```json{
+"success": false,
+"error": {
+"code": "[SPECIFIC_BUSINESS_ERROR]",
+"message": "[User-friendly explanation]"
+}
+}
+
+**Example Request:**
+```bashcurl -X POST https://api.example.com/v1/[resource]
+-H "Authorization: Bearer eyJhbGc..."
+-H "Content-Type: application/json"
+-d '{
+"[field1]": "example value",
+"[field2]": 123
+}'
+
+---
+
+##### `GET /[resource]` - List [Resources]
+
+**Description:** [What this retrieves]
+
+**Authorization:** [Required role/permission]
+
+**Query Parameters:**
+- `page`: integer (default: 1, min: 1)
+- `limit`: integer (default: 20, min: 1, max: 100)
+- `sort_by`: string (options: [field1, field2], default: created_at)
+- `sort_order`: string (asc/desc, default: desc)
+- `filter_[field]`: [type] (optional filter)
+- `search`: string (optional search query)
+
+**Response (200 OK):**
+```json{
+"success": true,
+"data": [
+{
+"id": "uuid",
+"[fields]": "values"
+}
+],
+"pagination": {
+"current_page": 1,
+"total_pages": 10,
+"total_items": 200,
+"items_per_page": 20,
+"has_next": true,
+"has_previous": false
+},
+"meta": {
+"applied_filters": {
+"[filter_name]": "[value]"
+}
+}
+}
+
+**Example:**
+```bashcurl -X GET "https://api.example.com/v1/[resource]?page=1&limit=20&sort_by=created_at"
+-H "Authorization: Bearer eyJhbGc..."
+
+---
+
+##### `GET /[resource]/:id` - Get Single [Resource]
+
+**Description:** [What this retrieves]
+
+**Authorization:** [Required role/permission]
+
+**Path Parameters:**
+- `id`: string (UUID of the resource)
+
+**Query Parameters (optional):**
+- `include`: string[] (related resources to include, e.g., "comments,author")
+
+**Response (200 OK):**
+```json{
+"success": true,
+"data": {
+"id": "uuid",
+"[all_fields]": "values",
+"[related_resources]": [] // if include parameter used
+}
+}
+
+**404 Not Found:**
+```json{
+"success": false,
+"error": {
+"code": "NOT_FOUND",
+"message": "[Resource] not found"
+}
+}
+
+---
+
+##### `PUT /[resource]/:id` - Update [Resource]
+
+**Description:** [Full update of resource]
+
+**Authorization:** [Required role/permission]
+
+**Request:** [Same as POST, all fields required]
+
+**Response (200 OK):**
+```json{
+"success": true,
+"data": {
+"id": "uuid",
+"[updated_fields]": "new_values",
+"updated_at": "2024-01-31T10:35:00Z"
+},
+"message": "Resource updated successfully"
+}
+
+---
+
+##### `PATCH /[resource]/:id` - Partial Update [Resource]
+
+**Description:** [Update specific fields]
+
+**Authorization:** [Required role/permission]
+
+**Request:**
+```json{
+"[field_to_update]": "new_value"
+}
+
+**Response:** [Same as PUT]
+
+---
+
+##### `DELETE /[resource]/:id` - Delete [Resource]
+
+**Description:** [What happens when deleted - soft/hard delete?]
+
+**Authorization:** [Required role/permission]
+
+**Response (200 OK):** [For soft delete]
+```json{
+"success": true,
+"message": "Resource deleted successfully",
+"data": {
+"id": "uuid",
+"deleted_at": "2024-01-31T10:40:00Z"
+}
+}
+
+**Response (204 No Content):** [For hard delete]
+
+**Business Rules:**
+- [Any cascading delete behavior]
+- [What happens to related resources]
+- [Restoration possibility if soft delete]
+
+---
+
+[REPEAT ENDPOINT PATTERN FOR EVERY FEATURE/ACTION WE DISCUSSED]
+
+---
+
+### 5. Complex/Custom Endpoints
+
+[For any non-CRUD operations discussed:]
+
+##### `POST /[custom-action]` - [Action Name]
+
+**Description:** [Detailed explanation of what this does]
+
+**Use Case:** [When/why this is needed based on our discussion]
+
+**Request:** [Specific structure]
+
+**Response:** [Specific structure]
+
+**Side Effects:**
+- [What else happens when this is called]
+- [Any async operations triggered]
+
+---
+
+### 6. Webhooks (if discussed)
+
+**Webhook Events:**
+
+#### Event: `[event.name]`
+**Triggered When:** [Condition]
+
+**Payload:**
+```json{
+"event": "[event.name]",
+"timestamp": "ISO 8601",
+"data": {
+"[event_specific_data]": "values"
+}
+}
+
+**Headers:**X-Webhook-Signature: [HMAC signature for verification]
+X-Webhook-Event: [event.name]
+
+---
+
+### 7. Error Handling Standards
+
+**Error Response Structure:**
+```json{
+"success": false,
+"error": {
+"code": "ERROR_CODE",
+"message": "Human-readable message",
+"details": [], // Optional additional context
+"timestamp": "ISO 8601",
+"request_id": "uuid", // For tracking/debugging
+"documentation_url": "https://docs.example.com/errors/ERROR_CODE"
+}
+}
+
+**Standard HTTP Status Codes:**
+- `200 OK`: Successful GET, PUT, PATCH, DELETE
+- `201 Created`: Successful POST
+- `204 No Content`: Successful DELETE (hard delete)
+- `400 Bad Request`: Invalid input data
+- `401 Unauthorized`: Missing or invalid authentication
+- `403 Forbidden`: Authenticated but insufficient permissions
+- `404 Not Found`: Resource doesn't exist
+- `409 Conflict`: Request conflicts with current state
+- `422 Unprocessable Entity`: Business logic validation failed
+- `429 Too Many Requests`: Rate limit exceeded
+- `500 Internal Server Error`: Server-side error
+- `503 Service Unavailable`: Temporary unavailability
+
+**Common Error Codes:**
+```typescriptenum ErrorCode {
+// Validation Errors (400)
+VALIDATION_ERROR = "VALIDATION_ERROR",
+INVALID_FORMAT = "INVALID_FORMAT",
+MISSING_REQUIRED_FIELD = "MISSING_REQUIRED_FIELD",// Authentication Errors (401)
+INVALID_TOKEN = "INVALID_TOKEN",
+EXPIRED_TOKEN = "EXPIRED_TOKEN",// Authorization Errors (403)
+INSUFFICIENT_PERMISSIONS = "INSUFFICIENT_PERMISSIONS",// Not Found Errors (404)
+RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND",// Business Logic Errors (422)
+[CUSTOM_BUSINESS_ERRORS_FROM_DISCUSSION]// Rate Limiting (429)
+RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+}
+
+---
+
+### 8. Rate Limiting
+
+**Limits:**
+- **Unauthenticated:** [X] requests per hour per IP
+- **Authenticated Users:** [Y] requests per hour per user
+- **Premium/Admin Users:** [Z] requests per hour per user
+
+**Headers:**X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1643630400 (Unix timestamp)
+
+**Rate Limit Exceeded Response:**
+```json{
+"success": false,
+"error": {
+"code": "RATE_LIMIT_EXCEEDED",
+"message": "Rate limit exceeded. Try again in [X] seconds",
+"retry_after": 3600
+}
+}
+
+---
+
+### 9. Pagination Standards
+
+**Query Parameters:**
+- `page`: Page number (1-indexed)
+- `limit`: Items per page (default: 20, max: 100)
+
+**Alternative (Cursor-based for large datasets):**
+- `cursor`: Opaque cursor string
+- `limit`: Items per page
+
+**Response Format:**
+```json{
+"data": [],
+"pagination": {
+"current_page": 1,
+"total_pages": 10,
+"total_items": 200,
+"items_per_page": 20,
+"has_next": true,
+"has_previous": false,
+"next_cursor": "opaque_string", // if cursor-based
+"previous_cursor": null
+}
+}
+
+---
+
+### 10. Search & Filtering
+
+**Search Endpoint:** `GET /[resource]/search`
+
+**Query Parameters:**
+- `q`: Search query string
+- `fields`: Fields to search in (comma-separated)
+- `[filter_*]`: Dynamic filters based on model fields
+
+**Example:**GET /users/search?q=john&fields=name,email&filter_status=active&filter_role=admin
+
+**Response:** [Standard list response with search metadata]
+
+---
+
+### 11. File Upload Endpoints (if discussed)
+
+##### `POST /[resource]/upload`
+
+**Content-Type:** `multipart/form-data`
+
+**Request:**file: [binary]
+metadata: {
+"description": "string",
+"[other_fields]": "values"
+}
+
+**File Constraints:**
+- Max size: [X] MB
+- Allowed types: [image/jpeg, image/png, application/pdf]
+- Naming: [Requirements]
+
+**Response:**
+```json{
+"success": true,
+"data": {
+"file_id": "uuid",
+"filename": "original.jpg",
+"size": 1048576,
+"mime_type": "image/jpeg",
+"url": "https://cdn.example.com/files/uuid",
+"thumbnail_url": "https://cdn.example.com/thumbnails/uuid"
+}
+}
+
+---
+
+### 12. Real-time Features (WebSocket/SSE if discussed)
+
+**WebSocket Connection:**wss://api.example.com/v1/ws?token=[jwt_token]
+
+**Message Format:**
+```json{
+"type": "[message_type]",
+"payload": {
+"[data]": "values"
+},
+"timestamp": "ISO 8601"
+}
+
+**Event Types:**
+- `[event_1]`: [Description]
+- `[event_2]`: [Description]
+
+---
+
+### 13. API Versioning Strategy
+
+**Approach:** URL-based versioning (`/v1/`, `/v2/`)
+
+**Deprecation Policy:**
+- Minimum [X] months notice before deprecation
+- Deprecation warnings in response headers
+- Documentation of breaking changes
+
+**Headers for Deprecated Endpoints:**X-API-Deprecated: true
+X-API-Sunset-Date: 2024-12-31
+X-API-Migration-Guide: https://docs.example.com/migration/v1-to-v2
+
+---
+
+### 14. Performance & Optimization
+
+**Caching Strategy:**
+- **Cacheable Endpoints:** [List endpoints with cache headers]
+- **Cache Headers:**Cache-Control: public, max-age=3600
+ETag: "hash_value"
+
+**Compression:**
+- Support for `gzip` and `brotli`
+- Automatic for responses > 1KB
+
+**Partial Responses (if beneficial):**GET /resource?fields=id,name,email
+
+---
+
+### 15. Security Considerations
+
+**Input Validation:**
+- All inputs sanitized against XSS
+- SQL injection prevention (parameterized queries)
+- Max payload size: [X] MB
+
+**CORS Configuration:**Access-Control-Allow-Origin: [configured origins]
+Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Headers: Authorization, Content-Type
+
+**HTTPS Only:**
+- All endpoints require HTTPS
+- HTTP requests redirected to HTTPS
+
+**Sensitive Data Handling:**
+- [Fields that should never be exposed]
+- [Encryption requirements]
+- [Data retention policies]
+
+---
+
+### 16. Testing Considerations
+
+**Required Test Coverage:**
+- **Unit Tests:** All business logic functions
+- **Integration Tests:** All API endpoints
+- **End-to-End Tests:** Critical user flows
+
+**Test Data Seeding:**POST /admin/test-data/seed
+POST /admin/test-data/reset
+[Only available in non-production environments]
+
+**Health Check Endpoints:**GET /health
+Response: { "status": "ok", "timestamp": "ISO 8601" }GET /health/detailed
+Response: {
+"status": "ok",
+"database": "connected",
+"cache": "connected",
+"external_services": { "[service]": "ok" }
+}
+
+---
+
+### 17. Documentation & Developer Experience
+
+**API Documentation URL:** `https://docs.[project].com`
+
+**Interactive API Explorer:** [Swagger/Postman/other]
+
+**SDK Support:**
+- JavaScript/TypeScript: `npm install @[project]/sdk`
+- Python: `pip install [project]-sdk`
+- [Other languages if discussed]
+
+**Example SDK Usage:**
+```typescriptimport { ProjectClient } from '@project/sdk';const client = new ProjectClient({
+apiKey: 'your_api_key',
+baseUrl: 'https://api.project.com/v1'
+});const result = await client.[resource].create({
+[field]: 'value'
+});
+
+---
+
+### 18. Monitoring & Observability
+
+**Request Tracking:**
+- Every request gets unique `X-Request-ID`
+- Logged for debugging and analytics
+
+**Metrics to Track:**
+- Response times (p50, p95, p99)
+- Error rates by endpoint
+- Request volume
+- Authentication success/failure rates
+
+**Logging Standards:**
+```json{
+"timestamp": "ISO 8601",
+"request_id": "uuid",
+"method": "POST",
+"path": "/resource",
+"status": 201,
+"duration_ms": 145,
+"user_id": "uuid",
+"ip": "x.x.x.x"
+}
+
+---
+
+### 19. Migration & Backward Compatibility
+
+**Breaking Changes Protocol:**
+1. Announce in changelog [X] months before
+2. Add deprecation warnings to responses
+3. Provide migration guide
+4. Support old version for minimum [Y] months
+5. Finally sunset old version
+
+**Non-Breaking Changes:**
+- Adding new endpoints
+- Adding optional fields
+- Adding new response fields
+- Making required fields optional
+
+---
+
+### 20. Summary & Quick Reference
+
+**Total Endpoints:** [Count]
+
+**Endpoint Overview:**
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | /auth/login | User login | No |
+| GET | /[resource] | List resources | Yes |
+| [Continue for all endpoints...] |
+
+**Key Design Principles Applied:**
+1. [Principle from discussion]
+2. [Principle from discussion]
+3. [Principle from discussion]
+
+**Next Steps for Frontend:**
+1. Review all data models and ensure UI designs accommodate all fields
+2. Implement API client/SDK wrapper
+3. Set up authentication flow
+4. Build feature modules aligned with endpoint groups
+5. Implement error handling for all error codes
+6. Set up state management for API data
+
+</instructions>
+
+<output_format>
+- Provide the COMPLETE API contract with ALL endpoints discussed
+- Use consistent formatting throughout
+- Include realistic examples for every endpoint
+- Be specific with data types and validation rules
+- Reference specific features and requirements from our conversation
+- Create a production-ready specification that a backend team could implement from
+- Use TypeScript-style interfaces for type clarity
+- Include inline comments explaining business logic where relevant
+</output_format>
+
+<quality_checks>
+Before finalizing, ensure:
+- [ ] Every feature we discussed has corresponding endpoints
+- [ ] All CRUD operations are covered for each entity
+- [ ] Error handling is comprehensive
+- [ ] Authentication/authorization is clearly specified
+- [ ] Data validation rules are explicit
+- [ ] Pagination and filtering are standardized
+- [ ] Response formats are consistent
+- [ ] Edge cases from our discussion are addressed
+- [ ] The contract is implementation-ready
+</quality_checks>
+</instructions>
